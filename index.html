@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="حدد الصفحات المهمة والأقل أهمية والمحذوفة في ملف PDF وأرسل التقرير على واتساب.">
+<meta name="robots" content="noindex">
+<title>مخطط صفحات PDF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Noto+Kufi+Arabic:wght@600;700&display=swap">
+<style>
+  :root {
+    --ground: #EDF1EF;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7F5;
+    --ink: #14201B;
+    --muted: #55625D;
+    --line: #D3DBD7;
+    --line-strong: #B7C2BD;
+    --accent: #0B6A51;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #D8EDE5;
+    --del: #B42318;
+    --del-soft: #FAE3E0;
+    --less: #5F6B67;
+    --less-soft: #E2E8E5;
+    --shadow: 0 1px 2px rgb(20 32 27 / .06), 0 10px 30px rgb(20 32 27 / .07);
+    --backdrop: rgb(10 18 15 / .55);
+    --font-display: "Noto Kufi Arabic", "IBM Plex Sans Arabic", Tahoma, sans-serif;
+    --font-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+    --font-mono: "IBM Plex Mono", "IBM Plex Sans Arabic", Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1412;
+      --surface: #161E1B;
+      --surface-2: #1C2622;
+      --ink: #E3EAE7;
+      --muted: #98A49F;
+      --line: #2A3531;
+      --line-strong: #3B4843;
+      --accent: #48C49B;
+      --accent-ink: #06231A;
+      --accent-soft: #15372C;
+      --del: #F08A80;
+      --del-soft: #3A1D1A;
+      --less: #A3AEAA;
+      --less-soft: #252F2B;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3);
+      --backdrop: rgb(0 0 0 / .65);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1412;
+    --surface: #161E1B;
+    --surface-2: #1C2622;
+    --ink: #E3EAE7;
+    --muted: #98A49F;
+    --line: #2A3531;
+    --line-strong: #3B4843;
+    --accent: #48C49B;
+    --accent-ink: #06231A;
+    --accent-soft: #15372C;
+    --del: #F08A80;
+    --del-soft: #3A1D1A;
+    --less: #A3AEAA;
+    --less-soft: #252F2B;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3);
+    --backdrop: rgb(0 0 0 / .65);
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.65;
+    padding-inline: 16px;
+    padding-block: 28px 0;
+  }
+  .wrap { max-width: 1240px; margin-inline: auto; display: grid; gap: 22px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .intro { display: grid; gap: 12px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.35; margin: 0; text-wrap: balance; }
+  .lede { margin: 0; color: var(--muted); max-width: 64ch; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; counter-reset: step; }
+  .steps li { counter-increment: step; display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.6; }
+  .steps li::before { content: counter(step); flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-weight: 600; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .upload { display: grid; gap: 12px; }
+  .drop { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 16px; padding: 16px 18px; background: var(--surface); border: 1.5px dashed var(--line-strong); border-radius: 14px; cursor: pointer; transition: border-color .15s, background-color .15s; }
+  .drop:hover { border-color: var(--accent); }
+  .drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .drop-icon { flex: none; width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+  .drop-text { display: grid; flex: 1 1 200px; line-height: 1.45; }
+  .drop-text strong { font-size: 16px; font-weight: 600; }
+  .drop-text small { color: var(--muted); font-size: 13px; }
+
+  .file-meta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; }
+  .file-meta div { display: grid; gap: 1px; min-width: 0; }
+  .file-meta dt { font-size: 12px; color: var(--muted); letter-spacing: .01em; }
+  .file-meta dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  #meta-sha { font-family: var(--font-mono); font-weight: 500; font-size: 14px; text-align: right; }
+
+  .status { margin: 0; font-size: 13px; min-height: 1.4em; color: var(--muted); }
+  .status.error { color: var(--del); }
+  .status.ok { color: var(--accent); }
+
+  .demo-note { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1.7; padding-inline: 9px; border-radius: 999px; background: var(--less-soft); color: var(--less); white-space: nowrap; }
+
+  .btn { font: inherit; font-size: 14px; font-weight: 600; line-height: 1.4; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; text-decoration: none; transition: background-color .15s, border-color .15s; }
+  .btn:hover { border-color: var(--ink); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { border-color: var(--accent); filter: brightness(1.06); }
+  .btn-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn-quiet:hover { border-color: var(--line-strong); color: var(--ink); }
+  .icon-btn { width: 38px; height: 38px; padding: 0; font-size: 18px; }
+
+  input[type="text"], textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px; padding: 8px 11px; width: 100%; box-sizing: border-box; }
+  input[type="text"]:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 22px; align-items: start; }
+  .board { display: grid; gap: 12px; min-width: 0; }
+
+  .toolbar { position: sticky; top: 0; z-index: 4; background: var(--ground); padding-block: 10px; }
+  .brush { margin: 0; padding: 5px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; box-shadow: var(--shadow); }
+  .opt { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 9px; padding: 8px 11px; border-radius: 9px; cursor: pointer; }
+  .opt input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+  .opt-important { --c: var(--accent); --c-soft: var(--accent-soft); }
+  .opt-less { --c: var(--less); --c-soft: var(--less-soft); }
+  .opt-delete { --c: var(--del); --c-soft: var(--del-soft); }
+  .opt:hover { background: var(--surface-2); }
+  .opt:has(input:checked) { background: var(--c-soft); box-shadow: inset 0 0 0 2px var(--c); }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+  .opt-delete .swatch { background: linear-gradient(to top left, transparent calc(50% - 1.5px), var(--c) calc(50% - 1.5px), var(--c) calc(50% + 1.5px), transparent calc(50% + 1.5px)); box-shadow: inset 0 0 0 1.5px var(--c); }
+  .opt-text { display: grid; line-height: 1.35; }
+  .opt-text b { font-weight: 600; font-size: 14px; }
+  .opt-text small { font-size: 12px; color: var(--muted); }
+  .count { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; color: var(--c); }
+
+  .range-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .range-row input { flex: 1 1 200px; min-width: 0; width: auto; }
+  .range-msg { margin: 0; font-size: 13px; min-height: 1.4em; color: var(--muted); }
+  .range-msg.error { color: var(--del); }
+  .range-msg.ok { color: var(--accent); }
+  .tip { margin: 0; font-size: 13px; color: var(--muted); max-width: 70ch; }
+
+  .pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 14px; }
+  .page { position: relative; }
+  .page-btn { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 6px; font: inherit; color: inherit; text-align: start; background: var(--surface); border: 1.5px solid var(--line); border-radius: 11px; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+  .page-btn:hover { border-color: var(--line-strong); }
+  .page-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .thumb { position: relative; display: grid; place-items: center; aspect-ratio: 1 / 1.414; max-width: 100%; background: #FFFFFF; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
+  .thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .thumb-num { font-family: var(--font-mono); font-size: 13px; color: #8E9894; text-align: center; padding: 6px; }
+  .meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-inline: 2px; font-size: 13px; }
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip { font-size: 12px; font-weight: 600; line-height: 1.7; padding-inline: 8px; border-radius: 999px; white-space: nowrap; }
+  .page[data-state="important"] .page-btn { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .page[data-state="important"] .chip { background: var(--accent); color: var(--accent-ink); }
+  .page[data-state="less"] .chip { background: var(--less-soft); color: var(--less); }
+  .page[data-state="delete"] .page-btn { border-color: var(--del); border-style: dashed; }
+  .page[data-state="delete"] .chip { background: var(--del-soft); color: var(--del); }
+  .page[data-state="delete"] .thumb > * { opacity: .3; }
+  .page[data-state="delete"] .thumb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top left, transparent calc(50% - 1.5px), var(--del) calc(50% - 1.5px), var(--del) calc(50% + 1.5px), transparent calc(50% + 1.5px)); }
+  .zoom { position: absolute; top: 12px; inset-inline-end: 12px; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: var(--shadow); }
+  .zoom:hover { border-color: var(--ink); }
+  .zoom:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .jump { display: none; }
+
+  .panel { position: sticky; top: 16px; display: grid; gap: 16px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 15px; box-shadow: var(--shadow); }
+  .panel h2 { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 0; }
+  .field { display: grid; gap: 6px; }
+  .field > label, .slip-head label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .optional { font-weight: 400; }
+  .size-input { display: flex; align-items: center; gap: 10px; }
+  .size-input input { width: 96px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
+  .size-input span { color: var(--muted); font-size: 14px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+  .summary li { display: flex; align-items: center; gap: 6px; }
+  .summary b { font-variant-numeric: tabular-nums; }
+  .summary .swatch { width: 10px; height: 10px; }
+  .slip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #report { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; min-height: 200px; resize: vertical; background: var(--surface-2); text-align: left; }
+  .actions { display: grid; gap: 8px; }
+  .fine { margin: 0; font-size: 13px; color: var(--muted); }
+  .fine.warn { color: var(--del); }
+
+  dialog.viewer { width: min(940px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); padding: 0; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); color: var(--ink); }
+  dialog.viewer::backdrop { background: var(--backdrop); }
+  .viewer-inner { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: calc(100vh - 26px); }
+  .viewer-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .viewer-nav { display: flex; align-items: center; gap: 10px; }
+  .viewer-nav strong { font-variant-numeric: tabular-nums; min-width: 9ch; text-align: center; }
+  .viewer-set { display: flex; flex-wrap: wrap; gap: 6px; }
+  .set { font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .set:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .set-important[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .set-less[aria-pressed="true"] { background: var(--less-soft); border-color: var(--less); color: var(--ink); }
+  .set-delete[aria-pressed="true"] { background: var(--del-soft); border-color: var(--del); color: var(--del); }
+  .viewer-stage { overflow: auto; padding: 12px; background: var(--surface-2); }
+  .viewer-stage canvas, .viewer-stage img { display: block; width: 100%; max-width: 100%; height: auto; margin-inline: auto; background: #FFFFFF; box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
+  .viewer-loading { margin: 0; padding: 40px 12px; text-align: center; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .workspace { grid-template-columns: 1fr; }
+    .panel { position: static; }
+    .jump { position: sticky; bottom: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 10px; background: var(--ground); border-top: 1px solid var(--line); }
+    .jump .summary { gap: 4px 10px; }
+  }
+  @media (max-width: 760px) {
+    .steps { grid-template-columns: 1fr; gap: 8px; }
+  }
+  @media (max-width: 520px) {
+    .opt { grid-template-columns: auto minmax(0, 1fr); row-gap: 2px; padding: 7px 8px; column-gap: 6px; }
+    .opt-text small { display: none; }
+    .count { grid-column: 2; }
+    .pages { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" dir="rtl" lang="ar">
+  <header class="intro">
+    <h1>مخطط صفحات PDF</h1>
+    <p class="lede">حدّد أي صفحات لازم تبقى واضحة، وأيها تنضغط بقوة، وأيها تنحذف. بعدها أرسل التقرير على واتساب، ويتم ضغط الملف حسب اختياراتك.</p>
+    <ol class="steps">
+      <li>ارفع ملف الـ PDF. يُفتح داخل جهازك فقط ولا يترفع لأي مكان.</li>
+      <li>اختر النوع من الشريط، ثم اضغط على الصفحات لتحديدها.</li>
+      <li>اكتب الحجم المطلوب، وأرسل التقرير وملف الـ PDF في نفس محادثة الواتساب.</li>
+    </ol>
+  </header>
+
+  <section class="upload" aria-label="الملف">
+    <label class="drop" id="drop" for="file">
+      <input type="file" id="file" class="sr-only" accept="application/pdf,.pdf">
+      <span class="drop-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6"/><path d="m9.5 13.5 2.5-2.5 2.5 2.5"/></svg>
+      </span>
+      <span class="drop-text">
+        <strong id="drop-title">ارفع ملف الـ PDF</strong>
+        <small>اسحب الملف هنا أو اضغط لاختياره</small>
+      </span>
+      <span class="btn" aria-hidden="true">اختيار ملف</span>
+    </label>
+    <dl class="file-meta">
+      <div><dt>الملف</dt><dd id="meta-name"></dd></div>
+      <div><dt>عدد الصفحات</dt><dd id="meta-pages"></dd></div>
+      <div><dt>الحجم الحالي</dt><dd id="meta-size"></dd></div>
+      <div><dt>بصمة الملف</dt><dd id="meta-sha" dir="ltr"></dd></div>
+    </dl>
+    <p class="status" id="file-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <p class="demo-note" id="demo-note"><span class="pill">مثال</span> هذه صفحات تجريبية توضّح الطريقة. ارفع ملفك عشان تبدأ.</p>
+
+  <div class="workspace">
+    <main class="board">
+      <div class="toolbar">
+        <fieldset class="brush">
+          <legend class="sr-only">نوع التحديد</legend>
+          <label class="opt opt-important">
+            <input type="radio" name="brush" id="brush-important" value="important" checked>
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="opt-text"><b>مهمة</b><small>لازم تكون واضحة</small></span>
+            <span class="count" id="count-important">0</span>
+          </label>
+          <label class="opt opt-less">
+            <input type="radio" name="brush" id="brush-less" value="less">
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="opt-text"><b>أقل أهمية</b><small>تنضغط بقوة</small></span>
+            <span class="count" id="count-less">0</span>
+          </label>
+          <label class="opt opt-delete">
+            <input type="radio" name="brush" id="brush-delete" value="delete">
+            <span class="swatch" aria-hidden="true"></span>
+            <span class="opt-text"><b>حذف</b><small>تنشال من الملف</small></span>
+            <span class="count" id="count-delete">0</span>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="range-row">
+        <label for="range" class="sr-only">أرقام الصفحات</label>
+        <input type="text" id="range" inputmode="text" autocomplete="off" placeholder="أرقام صفحات، مثل: 1-5, 14">
+        <button type="button" class="btn" id="range-apply">طبّق النوع المختار</button>
+        <button type="button" class="btn btn-quiet" id="reset">إرجاع الكل إلى «أقل أهمية»</button>
+      </div>
+      <p class="range-msg" id="range-msg" aria-live="polite"></p>
+      <p class="tip">اضغط على الصفحة مرة لتحديدها، ومرة ثانية لإرجاعها. زر العدسة يكبّر الصفحة. في الكمبيوتر: اضغط Shift مع النقر لتحديد صفحات متتالية.</p>
+
+      <div class="pages" id="pages"></div>
+
+      <div class="jump">
+        <ul class="summary" aria-hidden="true">
+          <li class="opt-important"><span class="swatch"></span>مهمة <b data-sum="important">0</b></li>
+          <li class="opt-less"><span class="swatch"></span>أقل <b data-sum="less">0</b></li>
+          <li class="opt-delete"><span class="swatch"></span>حذف <b data-sum="delete">0</b></li>
+        </ul>
+        <a class="btn btn-primary" href="#report-panel">التقرير</a>
+      </div>
+    </main>
+
+    <aside class="panel" id="report-panel" aria-label="التقرير">
+      <h2>التقرير</h2>
+      <div class="field">
+        <label for="target">الحجم المطلوب للملف النهائي</label>
+        <div class="size-input">
+          <input type="text" id="target" inputmode="decimal" value="2" dir="ltr" autocomplete="off">
+          <span>ميقابايت</span>
+        </div>
+      </div>
+      <ul class="summary">
+        <li class="opt-important"><span class="swatch" aria-hidden="true"></span>مهمة <b data-sum="important">0</b></li>
+        <li class="opt-less"><span class="swatch" aria-hidden="true"></span>أقل أهمية <b data-sum="less">0</b></li>
+        <li class="opt-delete"><span class="swatch" aria-hidden="true"></span>حذف <b data-sum="delete">0</b></li>
+      </ul>
+      <div class="field">
+        <label for="notes">ملاحظات <span class="optional">(اختياري)</span></label>
+        <textarea id="notes" rows="2" placeholder="مثلًا: صفحة 14 فيها رقم الهوية"></textarea>
+      </div>
+      <div class="field">
+        <div class="slip-head">
+          <label for="report">نص التقرير</label>
+          <span class="pill" id="report-tag">مثال</span>
+        </div>
+        <textarea id="report" rows="10" readonly dir="ltr" spellcheck="false"></textarea>
+      </div>
+      <div class="actions">
+        <a class="btn btn-primary" id="send" href="#" target="_blank" rel="noopener">إرسال التقرير على واتساب</a>
+        <button type="button" class="btn" id="copy">نسخ التقرير</button>
+        <p class="fine" id="send-hint"></p>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </div>
+    </aside>
+  </div>
+
+  <dialog class="viewer" id="viewer" aria-labelledby="viewer-title">
+    <div class="viewer-inner">
+      <div class="viewer-bar">
+        <div class="viewer-nav">
+          <button type="button" class="btn icon-btn" id="viewer-prev" aria-label="الصفحة السابقة">→</button>
+          <strong id="viewer-title"></strong>
+          <button type="button" class="btn icon-btn" id="viewer-next" aria-label="الصفحة التالية">←</button>
+        </div>
+        <div class="viewer-set" role="group" aria-label="نوع الصفحة">
+          <button type="button" class="set set-important" data-set="important" aria-pressed="false">مهمة</button>
+          <button type="button" class="set set-less" data-set="less" aria-pressed="false">أقل أهمية</button>
+          <button type="button" class="set set-delete" data-set="delete" aria-pressed="false">حذف</button>
+        </div>
+        <button type="button" class="btn icon-btn" id="viewer-close" aria-label="إغلاق">×</button>
+      </div>
+      <div class="viewer-stage" id="viewer-stage"></div>
+    </div>
+  </dialog>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(() => {
+  // Put your WhatsApp number here in international format (e.g. "9665XXXXXXXX")
+  // to open a chat with you directly; left empty, WhatsApp asks who to send to.
+  const WHATSAPP_NUMBER = "";
+  const THUMB_WIDTH = 240;
+  const LABELS = { important: "مهمة", less: "أقل أهمية", delete: "حذف" };
+  const DEMO_MARKS = ["important", "important", "less", "less", "delete", "delete", "less", "important", "less", "less", "less", "less"];
+  const ZOOM_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2M11 8.5v5M8.5 11h5"/></svg>';
+
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    file: $("file"), drop: $("drop"), dropTitle: $("drop-title"), fileStatus: $("file-status"),
+    metaName: $("meta-name"), metaPages: $("meta-pages"), metaSize: $("meta-size"), metaSha: $("meta-sha"),
+    demoNote: $("demo-note"), pages: $("pages"),
+    range: $("range"), rangeApply: $("range-apply"), rangeMsg: $("range-msg"), reset: $("reset"),
+    target: $("target"), notes: $("notes"), report: $("report"), reportTag: $("report-tag"),
+    send: $("send"), copy: $("copy"), sendHint: $("send-hint"), status: $("status"),
+    viewer: $("viewer"), viewerTitle: $("viewer-title"), viewerStage: $("viewer-stage"),
+    viewerPrev: $("viewer-prev"), viewerNext: $("viewer-next"), viewerClose: $("viewer-close"),
+  };
+
+  const app = {
+    demo: true, token: 0, pdf: null, name: "", size: 0, sha: "", n: 0,
+    marks: [], thumbs: [], brush: "important", last: null, viewerIndex: 0, viewerToken: 0,
+  };
+  let observer = null;
+  let queue = [];
+  let pumping = false;
+
+  const toLatinDigits = (s) => s
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
+
+  function setStatus(el, message, kind = "") {
+    el.textContent = message;
+    el.className = `status${kind ? " " + kind : ""}`;
+  }
+
+  function toRanges(nums) {
+    const out = [];
+    for (let i = 0; i < nums.length;) {
+      let j = i;
+      while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+      out.push(i === j ? `${nums[i]}` : `${nums[i]}-${nums[j]}`);
+      i = j + 1;
+    }
+    return out.join(", ");
+  }
+
+  function parseRanges(text, n) {
+    const clean = toLatinDigits(text).replace(/[،؛;]/g, ",").replace(/[–—−]/g, "-").replace(/\s*-\s*/g, "-");
+    const parts = clean.split(/[,\s]+/).filter(Boolean);
+    if (!parts.length) return { error: "اكتب أرقام الصفحات، مثل: 1-5, 14" };
+    const picked = new Set();
+    for (const part of parts) {
+      const m = part.match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) return { error: `«${part}» ليس رقم صفحة. اكتبها مثل: 1-5, 14` };
+      let a = Number(m[1]);
+      let b = m[2] ? Number(m[2]) : a;
+      if (a > b) [a, b] = [b, a];
+      if (a < 1 || b > n) return { error: `الصفحة ${a < 1 ? a : b} غير موجودة، الملف فيه ${n} صفحة` };
+      for (let p = a; p <= b; p++) picked.add(p - 1);
+    }
+    return { pages: [...picked] };
+  }
+
+  function drawMock(i, width) {
+    const height = Math.round(width * 1.414);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    let seed = i * 7919 + 17;
+    const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const scanned = i % 4 === 3 || i === 5;
+    const u = width / 200;
+    const margin = 20 * u;
+    ctx.fillStyle = scanned ? "#ECEBE5" : "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#1E2A26";
+    ctx.fillRect(width - margin - width * 0.4, margin, width * 0.4, 7 * u);
+    ctx.fillStyle = scanned ? "#707069" : "#A3ADA9";
+    let y = margin + 22 * u;
+    while (y < height - margin - 24 * u) {
+      const w = (width - 2 * margin) * (0.5 + rnd() * 0.5);
+      ctx.fillRect(width - margin - w, y, w, 3 * u);
+      y += (rnd() < 0.14 ? 15 : 7.5) * u;
+    }
+    if (scanned) {
+      ctx.strokeStyle = "rgba(40, 70, 150, .55)";
+      ctx.lineWidth = 2.5 * u;
+      ctx.beginPath();
+      ctx.arc(margin + 26 * u, height - margin - 34 * u, 19 * u, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    return canvas.toDataURL("image/png");
+  }
+
+  function renderFileMeta() {
+    els.metaName.textContent = app.name;
+    els.metaPages.textContent = `${app.n} صفحة`;
+    els.metaSize.textContent = `${(app.size / 1e6).toFixed(2)} MB`;
+    els.metaSha.textContent = app.sha;
+    els.dropTitle.textContent = app.demo ? "ارفع ملف الـ PDF" : "تغيير الملف";
+    els.demoNote.hidden = !app.demo;
+    els.reportTag.hidden = !app.demo;
+  }
+
+  function renderGrid() {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < app.n; i++) {
+      const card = document.createElement("div");
+      card.className = "page";
+      card.dataset.index = String(i);
+      card.innerHTML =
+        `<button type="button" class="page-btn" id="page-${i + 1}">` +
+          `<span class="thumb"><span class="thumb-num">${i + 1}</span></span>` +
+          `<span class="meta"><span class="num">صفحة ${i + 1}</span><span class="chip"></span></span>` +
+        `</button>` +
+        `<button type="button" class="zoom" aria-label="تكبير صفحة ${i + 1}">${ZOOM_ICON}</button>`;
+      frag.appendChild(card);
+    }
+    els.pages.replaceChildren(frag);
+    for (let i = 0; i < app.n; i++) {
+      paintCard(i);
+      if (app.thumbs[i]) setThumb(i);
+    }
+  }
+
+  function paintCard(i) {
+    const card = els.pages.children[i];
+    if (!card) return;
+    const mark = app.marks[i];
+    card.dataset.state = mark;
+    card.querySelector(".chip").textContent = LABELS[mark];
+    card.querySelector(".page-btn").setAttribute("aria-label", `صفحة ${i + 1}: ${LABELS[mark]}`);
+  }
+
+  function setThumb(i) {
+    const box = els.pages.children[i]?.querySelector(".thumb");
+    if (!box) return;
+    const img = new Image();
+    img.alt = "";
+    img.decoding = "async";
+    img.src = app.thumbs[i];
+    box.replaceChildren(img);
+  }
+
+  function watchThumbs() {
+    if (observer) observer.disconnect();
+    observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.unobserve(entry.target);
+        queue.push(Number(entry.target.dataset.index));
+      }
+      pump();
+    }, { rootMargin: "600px 0px" });
+    [...els.pages.children].forEach((card, i) => { if (!app.thumbs[i]) observer.observe(card); });
+  }
+
+  async function pump() {
+    if (pumping) return;
+    pumping = true;
+    const token = app.token;
+    while (queue.length && token === app.token) {
+      const i = queue.shift();
+      if (app.thumbs[i]) continue;
+      try {
+        const page = await app.pdf.getPage(i + 1);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: THUMB_WIDTH / base.width });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (token !== app.token) break;
+        app.thumbs[i] = canvas.toDataURL("image/jpeg", 0.75);
+        setThumb(i);
+        page.cleanup();
+      } catch (err) {
+        if (token !== app.token) break;
+        const box = els.pages.children[i]?.querySelector(".thumb");
+        if (box) {
+          const note = document.createElement("span");
+          note.className = "thumb-num";
+          note.textContent = "تعذّر عرض الصفحة";
+          box.replaceChildren(note);
+        }
+      }
+    }
+    pumping = false;
+    if (queue.length) pump();
+  }
+
+  function buildReport() {
+    const groups = { important: [], less: [], delete: [] };
+    app.marks.forEach((mark, i) => groups[mark].push(i + 1));
+    const targetText = toLatinDigits(els.target.value).trim().replace(",", ".");
+    const target = Number.parseFloat(targetText);
+    const lines = [
+      "طلب ضغط ملف PDF",
+      "PDFPLAN 1",
+      `file: ${app.name}`,
+      `pages: ${app.n}`,
+      `size_bytes: ${app.size}`,
+      `sha256: ${app.sha}`,
+      `target_mb: ${target > 0 ? target : "-"}`,
+      `delete: ${toRanges(groups.delete) || "-"}`,
+      `important: ${toRanges(groups.important) || "-"}`,
+      `less_important: ${toRanges(groups.less) || "-"}`,
+    ];
+    const notes = els.notes.value.replace(/\s+/g, " ").trim();
+    if (notes) lines.push(`notes: ${notes}`);
+    return { text: lines.join("\n"), groups, target };
+  }
+
+  function problemWith(groups, target) {
+    if (app.demo) return "ارفع ملفك أولًا عشان يطلع تقرير حقيقي.";
+    if (!(target > 0)) return "اكتب الحجم المطلوب بالميقابايت، مثل 2.";
+    if (groups.delete.length === app.n) return "لازم تبقى صفحة وحدة على الأقل.";
+    return "";
+  }
+
+  function updateReport() {
+    const { text, groups, target } = buildReport();
+    els.report.value = text;
+    for (const key of ["important", "less", "delete"]) {
+      $(`count-${key}`).textContent = groups[key].length;
+      document.querySelectorAll(`[data-sum="${key}"]`).forEach((el) => { el.textContent = groups[key].length; });
+    }
+    const problem = problemWith(groups, target);
+    els.send.setAttribute("aria-disabled", problem ? "true" : "false");
+    els.send.href = problem ? "#" : `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+    els.copy.disabled = app.demo;
+    let hint = problem || "بعد ما ترسل التقرير، أرسل ملف الـ PDF نفسه في نفس المحادثة.";
+    if (!problem && target * 1e6 >= app.size) hint = "الملف أصلًا أصغر من الحجم المطلوب. " + hint;
+    els.sendHint.textContent = hint;
+    els.sendHint.classList.toggle("warn", Boolean(problem) && !app.demo);
+  }
+
+  function loadDemo() {
+    Object.assign(app, {
+      demo: true, pdf: null, name: "مثال.pdf", size: 4200000, sha: "مثال",
+      n: DEMO_MARKS.length, marks: [...DEMO_MARKS], thumbs: [], last: null,
+    });
+    for (let i = 0; i < app.n; i++) app.thumbs[i] = drawMock(i, THUMB_WIDTH);
+    renderFileMeta();
+    renderGrid();
+    updateReport();
+  }
+
+  async function loadFile(file) {
+    if (!file) return;
+    if (!window.pdfjsLib) {
+      setStatus(els.fileStatus, "تعذّر تحميل قارئ الـ PDF. تأكد من اتصال الإنترنت وحدّث الصفحة.", "error");
+      return;
+    }
+    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+      setStatus(els.fileStatus, "اختر ملف بصيغة PDF.", "error");
+      return;
+    }
+    const token = ++app.token;
+    queue = [];
+    if (observer) observer.disconnect();
+    setStatus(els.fileStatus, "جاري فتح الملف…");
+    try {
+      const buffer = await file.arrayBuffer();
+      let sha = "-";
+      if (window.crypto && crypto.subtle) {
+        const digest = await crypto.subtle.digest("SHA-256", buffer);
+        sha = [...new Uint8Array(digest)].slice(0, 6).map((b) => b.toString(16).padStart(2, "0")).join("");
+      }
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false, useSystemFonts: true }).promise;
+      if (token !== app.token) { pdf.destroy(); return; }
+      if (app.pdf) app.pdf.destroy();
+      Object.assign(app, {
+        demo: false, pdf, name: file.name, size: file.size, sha,
+        n: pdf.numPages, marks: new Array(pdf.numPages).fill("less"), thumbs: [], last: null,
+      });
+      renderFileMeta();
+      renderGrid();
+      watchThumbs();
+      updateReport();
+      els.rangeMsg.textContent = "";
+      setStatus(els.fileStatus, `تم فتح الملف (${pdf.numPages} صفحة). اختر النوع ثم اضغط على الصفحات.`, "ok");
+    } catch (err) {
+      if (token !== app.token) return;
+      const message = err && err.name === "PasswordException"
+        ? "الملف محمي بكلمة مرور. احفظ نسخة بدون كلمة مرور وارفعها."
+        : "ما قدرنا نفتح الملف. تأكد إنه ملف PDF سليم.";
+      setStatus(els.fileStatus, message, "error");
+    }
+  }
+
+  function markPages(indices, mark) {
+    for (const i of indices) {
+      app.marks[i] = mark;
+      paintCard(i);
+    }
+    updateReport();
+  }
+
+  async function openViewer(i) {
+    app.viewerIndex = i;
+    if (!els.viewer.open) els.viewer.showModal();
+    drawViewer();
+  }
+
+  function syncViewerState() {
+    const mark = app.marks[app.viewerIndex];
+    els.viewer.querySelectorAll("[data-set]").forEach((btn) => {
+      btn.setAttribute("aria-pressed", String(btn.dataset.set === mark));
+    });
+  }
+
+  async function drawViewer() {
+    const i = app.viewerIndex;
+    const token = ++app.viewerToken;
+    els.viewerTitle.textContent = `صفحة ${i + 1} من ${app.n}`;
+    els.viewerPrev.disabled = i === 0;
+    els.viewerNext.disabled = i === app.n - 1;
+    syncViewerState();
+    const loading = document.createElement("p");
+    loading.className = "viewer-loading";
+    loading.textContent = "جاري عرض الصفحة…";
+    els.viewerStage.replaceChildren(loading);
+
+    if (app.demo) {
+      const img = new Image();
+      img.alt = `صفحة ${i + 1} (مثال)`;
+      img.src = drawMock(i, 900);
+      els.viewerStage.replaceChildren(img);
+      return;
+    }
+    try {
+      const page = await app.pdf.getPage(i + 1);
+      if (token !== app.viewerToken) return;
+      const base = page.getViewport({ scale: 1 });
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const cssWidth = Math.max(280, Math.min(els.viewerStage.clientWidth - 24, 900));
+      const viewport = page.getViewport({ scale: (cssWidth * ratio) / base.width });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      if (token !== app.viewerToken) return;
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", `صفحة ${i + 1}`);
+      els.viewerStage.replaceChildren(canvas);
+    } catch (err) {
+      if (token === app.viewerToken) loading.textContent = "تعذّر عرض هذه الصفحة.";
+    }
+  }
+
+  function applyRange() {
+    const result = parseRanges(els.range.value, app.n);
+    if (result.error) {
+      els.rangeMsg.textContent = result.error;
+      els.rangeMsg.className = "range-msg error";
+      return;
+    }
+    markPages(result.pages, app.brush);
+    els.rangeMsg.textContent = `تم تحديد ${result.pages.length} صفحة كـ «${LABELS[app.brush]}».`;
+    els.rangeMsg.className = "range-msg ok";
+  }
+
+  document.querySelectorAll('input[name="brush"]').forEach((radio) => {
+    radio.addEventListener("change", () => { if (radio.checked) app.brush = radio.value; });
+  });
+
+  els.pages.addEventListener("click", (event) => {
+    const card = event.target.closest(".page");
+    if (!card) return;
+    const i = Number(card.dataset.index);
+    if (event.target.closest(".zoom")) { openViewer(i); return; }
+    if (!event.target.closest(".page-btn")) return;
+    if (event.shiftKey && app.last !== null) {
+      const from = Math.min(app.last, i);
+      const to = Math.max(app.last, i);
+      markPages(Array.from({ length: to - from + 1 }, (_, k) => from + k), app.brush);
+    } else {
+      const next = app.marks[i] === app.brush && app.brush !== "less" ? "less" : app.brush;
+      markPages([i], next);
+    }
+    app.last = i;
+  });
+
+  els.rangeApply.addEventListener("click", applyRange);
+  els.range.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); applyRange(); } });
+  els.reset.addEventListener("click", () => {
+    markPages(app.marks.map((_, i) => i), "less");
+    els.rangeMsg.textContent = "رجعت كل الصفحات إلى «أقل أهمية».";
+    els.rangeMsg.className = "range-msg ok";
+  });
+
+  els.target.addEventListener("input", updateReport);
+  els.notes.addEventListener("input", updateReport);
+
+  els.copy.addEventListener("click", async () => {
+    const text = els.report.value;
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus(els.status, "تم نسخ التقرير. الصقه في محادثة الواتساب.", "ok");
+    } catch (err) {
+      els.report.focus();
+      els.report.select();
+      let copied = false;
+      try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+      setStatus(els.status, copied ? "تم نسخ التقرير. الصقه في محادثة الواتساب." : "النص محدد الحين، انسخه يدويًا.", copied ? "ok" : "error");
+    }
+  });
+
+  els.send.addEventListener("click", (event) => {
+    if (els.send.getAttribute("aria-disabled") === "true") {
+      event.preventDefault();
+      setStatus(els.status, els.sendHint.textContent, "error");
+      return;
+    }
+    setStatus(els.status, "إذا ما انفتح الواتساب، اضغط «نسخ التقرير» والصقه في المحادثة.");
+  });
+
+  els.file.addEventListener("change", () => {
+    const file = els.file.files[0];
+    els.file.value = "";
+    loadFile(file);
+  });
+  ["dragenter", "dragover"].forEach((type) => els.drop.addEventListener(type, (event) => {
+    event.preventDefault();
+    els.drop.classList.add("is-over");
+  }));
+  ["dragleave", "drop"].forEach((type) => els.drop.addEventListener(type, (event) => {
+    event.preventDefault();
+    els.drop.classList.remove("is-over");
+  }));
+  els.drop.addEventListener("drop", (event) => loadFile(event.dataTransfer.files[0]));
+  ["dragover", "drop"].forEach((type) => window.addEventListener(type, (event) => event.preventDefault()));
+
+  els.viewerPrev.addEventListener("click", () => { if (app.viewerIndex > 0) { app.viewerIndex--; drawViewer(); } });
+  els.viewerNext.addEventListener("click", () => { if (app.viewerIndex < app.n - 1) { app.viewerIndex++; drawViewer(); } });
+  els.viewerClose.addEventListener("click", () => els.viewer.close());
+  els.viewer.addEventListener("click", (event) => { if (event.target === els.viewer) els.viewer.close(); });
+  els.viewer.addEventListener("close", () => els.viewerStage.replaceChildren());
+  els.viewer.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft" && app.viewerIndex < app.n - 1) { app.viewerIndex++; drawViewer(); }
+    if (event.key === "ArrowRight" && app.viewerIndex > 0) { app.viewerIndex--; drawViewer(); }
+  });
+  els.viewer.querySelectorAll("[data-set]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      markPages([app.viewerIndex], btn.dataset.set);
+      syncViewerState();
+    });
+  });
+
+  loadDemo();
+})();
+</script>
+</body>
+</html>
