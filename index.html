@@ -206,7 +206,7 @@
 
   dialog.viewer { width: min(940px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); padding: 0; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); color: var(--ink); }
   dialog.viewer::backdrop { background: var(--backdrop); }
-  .viewer-inner { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: calc(100vh - 26px); }
+  .viewer-inner { display: grid; grid-template-rows: auto auto minmax(0, 1fr); max-height: calc(100vh - 26px); }
   .viewer-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
   .viewer-nav { display: flex; align-items: center; gap: 10px; }
   .viewer-nav strong { font-variant-numeric: tabular-nums; min-width: 9ch; text-align: center; }
@@ -219,6 +219,17 @@
   .viewer-stage { overflow: auto; padding: 12px; background: var(--surface-2); }
   .viewer-stage canvas, .viewer-stage img { display: block; width: 100%; max-width: 100%; height: auto; margin-inline: auto; background: #FFFFFF; box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
   .viewer-loading { margin: 0; padding: 40px 12px; text-align: center; color: var(--muted); }
+  .viewer-inner > .viewer-bar { grid-row: 1; }
+  .viewer-inner > .viewer-stage { grid-row: 3; }
+  .viewer-note { grid-row: 2; margin: 0; padding: 8px 12px; font-size: 13px; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+  .viewer-note.error { color: var(--del); }
+  .viewer-replace { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn-sm { padding: 4px 10px; font-size: 13px; }
+  .field-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .replace-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .replace-list li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .replace-list li span { flex: 1; font-variant-numeric: tabular-nums; }
+  .page[data-replaced="true"]::before { content: "صورة بديلة"; position: absolute; top: 14px; inset-inline-start: 14px; z-index: 1; font-size: 11px; font-weight: 600; line-height: 1.8; padding-inline: 7px; border-radius: 999px; background: var(--ink); color: var(--surface); pointer-events: none; }
 
   @media (max-width: 900px) {
     .workspace { grid-template-columns: 1fr; }
@@ -313,7 +324,7 @@
         <button type="button" class="btn btn-quiet" id="reset">إرجاع الكل إلى «أقل أهمية»</button>
       </div>
       <p class="range-msg" id="range-msg" aria-live="polite"></p>
-      <p class="tip">اضغط على الصفحة مرة لتحديدها، ومرة ثانية لإرجاعها. زر العدسة يكبّر الصفحة. في الكمبيوتر: اضغط Shift مع النقر لتحديد صفحات متتالية.</p>
+      <p class="tip">اضغط على الصفحة مرة لتحديدها، ومرة ثانية لإرجاعها. زر العدسة يكبّر الصفحة، ومنه تقدر تستبدل الصفحة بصورة. في الكمبيوتر: اضغط Shift مع النقر لتحديد صفحات متتالية.</p>
 
       <div class="pages" id="pages"></div>
 
@@ -341,6 +352,10 @@
         <li class="opt-less"><span class="swatch" aria-hidden="true"></span>أقل أهمية <b data-sum="less">0</b></li>
         <li class="opt-delete"><span class="swatch" aria-hidden="true"></span>حذف <b data-sum="delete">0</b></li>
       </ul>
+      <div class="field" id="replace-field" hidden>
+        <span class="field-label">صور بديلة</span>
+        <ul class="replace-list" id="replace-list"></ul>
+      </div>
       <div class="field">
         <label for="notes">ملاحظات <span class="optional">(اختياري)</span></label>
         <textarea id="notes" rows="2" placeholder="مثلًا: صفحة 14 فيها رقم الهوية"></textarea>
@@ -382,8 +397,14 @@
           <button type="button" class="set set-less" data-set="less" aria-pressed="false">أقل أهمية</button>
           <button type="button" class="set set-delete" data-set="delete" aria-pressed="false">حذف</button>
         </div>
+        <div class="viewer-replace">
+          <button type="button" class="btn" id="replace-pick">استبدال بصورة</button>
+          <button type="button" class="btn btn-quiet" id="replace-remove" hidden>إزالة الصورة</button>
+          <input type="file" id="replace-input" class="sr-only" accept="image/*" tabindex="-1" aria-hidden="true">
+        </div>
         <button type="button" class="btn icon-btn" id="viewer-close" aria-label="إغلاق">×</button>
       </div>
+      <p class="viewer-note" id="viewer-note" role="status" aria-live="polite" hidden></p>
       <div class="viewer-stage" id="viewer-stage"></div>
     </div>
   </dialog>
@@ -402,6 +423,90 @@
   const DEMO_MARKS = ["important", "important", "less", "less", "delete", "delete", "less", "important", "less", "less", "less", "less"];
   const ZOOM_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2M11 8.5v5M8.5 11h5"/></svg>';
 
+  // Phone photos can be huge; this keeps documents legible while sharing fast.
+  const MAX_IMAGE_SIDE = 2400;
+
+  function imagesLabel(count) {
+    if (count === 1) return "وصورة بديلة";
+    if (count === 2) return "وصورتين بديلتين";
+    if (count <= 10) return `و${count} صور بديلة`;
+    return `و${count} صورة بديلة`;
+  }
+
+  // A one-page PDF wrapping a JPEG. It travels as a document, so WhatsApp
+  // keeps it byte-for-byte (a photo would be recompressed and renamed), and
+  // the Subject tells the compression script which page it replaces.
+  function jpegToPdf(jpeg, imgWidth, imgHeight, pageWidth, pageHeight, subject) {
+    const encoder = new TextEncoder();
+    const parts = [];
+    const offsets = [];
+    let length = 0;
+    const push = (chunk) => {
+      const bytes = typeof chunk === "string" ? encoder.encode(chunk) : chunk;
+      parts.push(bytes);
+      length += bytes.length;
+    };
+    const object = (number, ...body) => {
+      offsets[number] = length;
+      push(`${number} 0 obj\n`);
+      body.forEach(push);
+      push("\nendobj\n");
+    };
+    const margin = 18;
+    const scale = Math.min((pageWidth - 2 * margin) / imgWidth, (pageHeight - 2 * margin) / imgHeight);
+    const w = imgWidth * scale;
+    const h = imgHeight * scale;
+    const content = `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${((pageWidth - w) / 2).toFixed(2)} ${((pageHeight - h) / 2).toFixed(2)} cm /Im0 Do Q`;
+
+    push("%PDF-1.4\n%âãÏÓ\n");
+    object(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    object(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth.toFixed(2)} ${pageHeight.toFixed(2)}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+    object(4, `<< /Type /XObject /Subtype /Image /Width ${imgWidth} /Height ${imgHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, "\nendstream");
+    object(5, `<< /Length ${encoder.encode(content).length} >>\nstream\n${content}\nendstream`);
+    object(6, `<< /Title (Replacement page) /Subject (${subject}) /Producer (PDF page planner) >>`);
+    const xrefStart = length;
+    let xref = "xref\n0 7\n0000000000 65535 f \n";
+    for (let n = 1; n <= 6; n++) xref += `${String(offsets[n]).padStart(10, "0")} 00000 n \n`;
+    push(xref);
+    push(`trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+
+  async function makeReplacement(pageIndex, imageFile) {
+    const page = await app.pdf.getPage(pageIndex + 1);
+    const { width: pageWidth, height: pageHeight } = page.getViewport({ scale: 1 });
+    const sourceUrl = URL.createObjectURL(imageFile);
+    try {
+      const img = new Image();
+      img.src = sourceUrl;
+      await img.decode();
+      const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const jpegBlob = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("JPEG encoding failed"))), "image/jpeg", 0.85);
+      });
+      const jpeg = new Uint8Array(await jpegBlob.arrayBuffer());
+      const pdfBlob = jpegToPdf(jpeg, canvas.width, canvas.height, pageWidth, pageHeight,
+        `PDFPLAN-REPLACE page=${pageIndex + 1} of=${app.sha}`);
+      const name = `صورة-بديلة-صفحة-${pageIndex + 1}.pdf`;
+      return {
+        name,
+        file: new File([pdfBlob], name, { type: "application/pdf" }),
+        preview: URL.createObjectURL(jpegBlob),
+        downloadUrl: URL.createObjectURL(pdfBlob),
+      };
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
+    }
+  }
+
   if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
@@ -417,12 +522,14 @@
     shareFile: $("share-file"), shareHint: $("share-hint"), stepFile: $("step-file"),
     viewer: $("viewer"), viewerTitle: $("viewer-title"), viewerStage: $("viewer-stage"),
     viewerPrev: $("viewer-prev"), viewerNext: $("viewer-next"), viewerClose: $("viewer-close"),
+    viewerNote: $("viewer-note"), replacePick: $("replace-pick"), replaceRemove: $("replace-remove"),
+    replaceInput: $("replace-input"), replaceField: $("replace-field"), replaceList: $("replace-list"),
   };
 
   const app = {
     demo: true, token: 0, pdf: null, name: "", size: 0, sha: "", n: 0,
     marks: [], thumbs: [], brush: "important", last: null, viewerIndex: 0, viewerToken: 0,
-    file: null, canShareFiles: false, fileShared: false,
+    file: null, canShareFiles: false, fileShared: false, replacements: new Map(),
   };
   let observer = null;
   let queue = [];
@@ -532,19 +639,79 @@
     const card = els.pages.children[i];
     if (!card) return;
     const mark = app.marks[i];
+    const replaced = app.replacements.has(i);
     card.dataset.state = mark;
+    card.dataset.replaced = String(replaced);
     card.querySelector(".chip").textContent = LABELS[mark];
-    card.querySelector(".page-btn").setAttribute("aria-label", `صفحة ${i + 1}: ${LABELS[mark]}`);
+    card.querySelector(".page-btn").setAttribute("aria-label", `صفحة ${i + 1}: ${LABELS[mark]}${replaced ? "، صورة بديلة" : ""}`);
   }
 
   function setThumb(i) {
     const box = els.pages.children[i]?.querySelector(".thumb");
     if (!box) return;
+    const src = app.replacements.get(i)?.preview || app.thumbs[i];
+    if (!src) {
+      const placeholder = document.createElement("span");
+      placeholder.className = "thumb-num";
+      placeholder.textContent = String(i + 1);
+      box.replaceChildren(placeholder);
+      return;
+    }
     const img = new Image();
     img.alt = "";
     img.decoding = "async";
-    img.src = app.thumbs[i];
+    img.src = src;
     box.replaceChildren(img);
+  }
+
+  function removeReplacement(i) {
+    const replacement = app.replacements.get(i);
+    if (!replacement) return false;
+    URL.revokeObjectURL(replacement.preview);
+    URL.revokeObjectURL(replacement.downloadUrl);
+    app.replacements.delete(i);
+    return true;
+  }
+
+  function clearReplacements() {
+    [...app.replacements.keys()].forEach(removeReplacement);
+  }
+
+  function afterReplacementChange(i) {
+    app.fileShared = false;
+    paintCard(i);
+    setThumb(i);
+    updateReport();
+    if (els.viewer.open && app.viewerIndex === i) drawViewer();
+  }
+
+  function renderReplacementList() {
+    const pages = [...app.replacements.keys()].sort((a, b) => a - b);
+    els.replaceField.hidden = pages.length === 0;
+    els.replaceList.replaceChildren(...pages.map((i) => {
+      const replacement = app.replacements.get(i);
+      const item = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = `صفحة ${i + 1}`;
+      const download = document.createElement("a");
+      download.className = "btn btn-sm";
+      download.href = replacement.downloadUrl;
+      download.download = replacement.name;
+      download.textContent = "تنزيل";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn btn-quiet btn-sm";
+      remove.dataset.remove = String(i);
+      remove.textContent = "إزالة";
+      item.append(label, download, remove);
+      return item;
+    }));
+  }
+
+  function setViewerNote(message, kind = "") {
+    els.viewerNote.hidden = !message;
+    els.viewerNote.textContent = message;
+    els.viewerNote.className = `viewer-note${kind ? " " + kind : ""}`;
   }
 
   function watchThumbs() {
@@ -613,6 +780,7 @@
       `delete: ${toRanges(groups.delete) || "-"}`,
       `important: ${toRanges(groups.important) || "-"}`,
       `less_important: ${toRanges(groups.less) || "-"}`,
+      `replace: ${toRanges([...app.replacements.keys()].sort((a, b) => a - b).map((i) => i + 1)) || "-"}`,
     ];
     const notes = els.notes.value.replace(/\s+/g, " ").trim();
     if (notes) lines.push(`notes: ${notes}`);
@@ -636,12 +804,23 @@
     const problem = app.demo ? "ارفع ملفك أولًا." : problemWith(groups, target);
     els.copy.disabled = app.demo;
 
+    renderReplacementList();
+    const imageCount = app.replacements.size;
     const shareDisabled = Boolean(problem) || !app.canShareFiles;
     let shareHint;
     if (problem) shareHint = problem;
-    else if (!app.canShareFiles) shareHint = "متصفحك ما يدعم إرسال الملفات. بعد إرسال التقرير، أرسل ملف الـ PDF يدويًا في نفس المحادثة.";
-    else if (app.fileShared) shareHint = "تمت المشاركة. تأكد إن الملف وصل للواتساب.";
-    else shareHint = `تفتح قائمة المشاركة: اختر واتساب، ثم ${OWNER_CHAT}. الملف ينرسل من جهازك مباشرة وما يمر على هذا الموقع.`;
+    else if (!app.canShareFiles) {
+      shareHint = imageCount
+        ? "متصفحك ما يدعم إرسال الملفات. بعد إرسال التقرير، أرسل ملف الـ PDF والصور البديلة يدويًا في نفس المحادثة. تقدر تنزّل الصور البديلة من القائمة فوق."
+        : "متصفحك ما يدعم إرسال الملفات. بعد إرسال التقرير، أرسل ملف الـ PDF يدويًا في نفس المحادثة.";
+    }
+    else if (app.fileShared) shareHint = "تمت المشاركة. تأكد إن كل الملفات وصلت للواتساب.";
+    else {
+      shareHint = `تفتح قائمة المشاركة: اختر واتساب، ثم ${OWNER_CHAT}. ` + (imageCount
+        ? "الملف والصور البديلة تنرسل من جهازك مباشرة وما تمر على هذا الموقع."
+        : "الملف ينرسل من جهازك مباشرة وما يمر على هذا الموقع.");
+    }
+    els.shareFile.textContent = imageCount ? `إرسال ملف الـ PDF ${imagesLabel(imageCount)}` : "إرسال ملف الـ PDF";
     els.shareFile.setAttribute("aria-disabled", String(shareDisabled));
     els.shareHint.textContent = shareHint;
     els.shareHint.classList.toggle("warn", shareDisabled && !app.demo);
@@ -660,6 +839,7 @@
   }
 
   function loadDemo() {
+    clearReplacements();
     Object.assign(app, {
       demo: true, pdf: null, name: "مثال.pdf", size: 4200000, sha: "مثال",
       n: DEMO_MARKS.length, marks: [...DEMO_MARKS], thumbs: [], last: null,
@@ -697,6 +877,7 @@
       if (app.pdf) app.pdf.destroy();
       // Some phones hand over PDFs with no MIME type, which the share sheet rejects.
       const shareable = file.type === "application/pdf" ? file : new File([file], file.name, { type: "application/pdf" });
+      clearReplacements();
       Object.assign(app, {
         demo: false, pdf, name: file.name, size: file.size, sha,
         n: pdf.numPages, marks: new Array(pdf.numPages).fill("less"), thumbs: [], last: null,
@@ -719,11 +900,22 @@
   }
 
   function markPages(indices, mark) {
+    let dropped = 0;
     for (const i of indices) {
       app.marks[i] = mark;
+      if (mark === "delete" && removeReplacement(i)) {
+        dropped++;
+        app.fileShared = false;
+        setThumb(i);
+      }
       paintCard(i);
     }
     updateReport();
+    if (dropped) {
+      setStatus(els.status, dropped === 1
+        ? "انشالت الصورة البديلة لأن صفحتها صارت «حذف»."
+        : `انشالت الصور البديلة من ${dropped} صفحات لأنها صارت «حذف».`);
+    }
   }
 
   async function openViewer(i) {
@@ -733,10 +925,16 @@
   }
 
   function syncViewerState() {
-    const mark = app.marks[app.viewerIndex];
+    const i = app.viewerIndex;
+    const mark = app.marks[i];
     els.viewer.querySelectorAll("[data-set]").forEach((btn) => {
       btn.setAttribute("aria-pressed", String(btn.dataset.set === mark));
     });
+    const replaced = app.replacements.has(i);
+    els.replacePick.textContent = replaced ? "تغيير الصورة" : "استبدال بصورة";
+    els.replacePick.setAttribute("aria-disabled", String(app.demo || mark === "delete"));
+    els.replaceRemove.hidden = !replaced;
+    setViewerNote(replaced ? "هذه الصفحة بتنستبدل بالصورة اللي اخترتها." : "");
   }
 
   async function drawViewer() {
@@ -751,6 +949,14 @@
     loading.textContent = "جاري عرض الصفحة…";
     els.viewerStage.replaceChildren(loading);
 
+    const replacement = app.replacements.get(i);
+    if (replacement) {
+      const img = new Image();
+      img.alt = `الصورة البديلة لصفحة ${i + 1}`;
+      img.src = replacement.preview;
+      els.viewerStage.replaceChildren(img);
+      return;
+    }
     if (app.demo) {
       const img = new Image();
       img.alt = `صفحة ${i + 1} (مثال)`;
@@ -844,18 +1050,69 @@
       setStatus(els.status, els.shareHint.textContent, "error");
       return;
     }
+    const images = [...app.replacements.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r.file);
+    const files = [app.file, ...images];
+    if (navigator.canShare && !navigator.canShare({ files })) {
+      setStatus(els.status, "جهازك ما يقدر يرسل كل الملفات مرة وحدة. أرسل ملف الـ PDF يدويًا، ونزّل الصور البديلة من القائمة وأرسلها في نفس المحادثة.", "error");
+      return;
+    }
     try {
-      await navigator.share({ files: [app.file] });
+      await navigator.share({ files });
       app.fileShared = true;
       updateReport();
-      setStatus(els.status, "تمت مشاركة الملف. الحين اضغط «إرسال التقرير».", "ok");
+      setStatus(els.status, images.length
+        ? "تمت مشاركة الملف والصور البديلة. الحين اضغط «إرسال التقرير»."
+        : "تمت مشاركة الملف. الحين اضغط «إرسال التقرير».", "ok");
     } catch (err) {
       if (err && err.name === "AbortError") {
-        setStatus(els.status, "انلغت المشاركة. اضغط «إرسال ملف الـ PDF» وحاول مرة ثانية.");
+        setStatus(els.status, "انلغت المشاركة. اضغط زر الإرسال وحاول مرة ثانية.");
       } else {
-        setStatus(els.status, "ما انفتحت قائمة المشاركة. أرسل ملف الـ PDF يدويًا في نفس محادثة الواتساب.", "error");
+        setStatus(els.status, "ما انفتحت قائمة المشاركة. أرسل الملفات يدويًا في نفس محادثة الواتساب.", "error");
       }
     }
+  });
+
+  els.replacePick.addEventListener("click", () => {
+    if (els.replacePick.getAttribute("aria-disabled") === "true") {
+      setViewerNote(app.demo
+        ? "ارفع ملفك أولًا عشان تقدر تستبدل صفحة بصورة."
+        : "الصفحة محددة «حذف». غيّر نوعها أولًا عشان تقدر تستبدلها بصورة.", "error");
+      return;
+    }
+    els.replaceInput.click();
+  });
+
+  els.replaceInput.addEventListener("change", async () => {
+    const image = els.replaceInput.files[0];
+    els.replaceInput.value = "";
+    if (!image) return;
+    const i = app.viewerIndex;
+    const token = app.token;
+    setViewerNote("جاري تجهيز الصورة…");
+    try {
+      const replacement = await makeReplacement(i, image);
+      if (token !== app.token) {
+        URL.revokeObjectURL(replacement.preview);
+        URL.revokeObjectURL(replacement.downloadUrl);
+        return;
+      }
+      removeReplacement(i);
+      app.replacements.set(i, replacement);
+      afterReplacementChange(i);
+    } catch (err) {
+      setViewerNote("ما قدرنا نقرا الصورة. جرّب صورة بصيغة JPG أو PNG.", "error");
+    }
+  });
+
+  els.replaceRemove.addEventListener("click", () => {
+    if (removeReplacement(app.viewerIndex)) afterReplacementChange(app.viewerIndex);
+  });
+
+  els.replaceList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove]");
+    if (!button) return;
+    const i = Number(button.dataset.remove);
+    if (removeReplacement(i)) afterReplacementChange(i);
   });
 
   els.send.addEventListener("click", (event) => {
@@ -894,8 +1151,10 @@
   });
   els.viewer.querySelectorAll("[data-set]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const hadReplacement = app.replacements.has(app.viewerIndex);
       markPages([app.viewerIndex], btn.dataset.set);
-      syncViewerState();
+      if (hadReplacement && !app.replacements.has(app.viewerIndex)) drawViewer();
+      else syncViewerState();
     });
   });
 
