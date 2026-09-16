@@ -229,6 +229,28 @@
   .replace-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .replace-list li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
   .replace-list li span { flex: 1; font-variant-numeric: tabular-nums; }
+  .price { display: grid; gap: 6px; padding: 12px 14px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--line); }
+  .price-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .price-total { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .price-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+  .price-lines li { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+  .agree { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+  .agree label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .agree input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .link-btn { font: inherit; font-size: 14px; padding: 0; border: 0; background: none; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  dialog.terms { width: min(680px, calc(100vw - 24px)); max-width: none; max-height: calc(100vh - 24px); padding: 0; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); color: var(--ink); }
+  dialog.terms::backdrop { background: var(--backdrop); }
+  .terms-inner { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: calc(100vh - 26px); }
+  .terms-head, .terms-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; }
+  .terms-head { border-bottom: 1px solid var(--line); }
+  .terms-head h2 { margin: 0; font-family: var(--font-display); font-size: 18px; }
+  .terms-foot { border-top: 1px solid var(--line); justify-content: flex-start; }
+  .terms-body { overflow: auto; padding: 6px 18px 16px; }
+  .terms-body h3 { font-size: 15px; font-weight: 600; margin: 16px 0 4px; }
+  .terms-body p, .terms-body li { margin: 0; font-size: 14px; color: var(--ink); max-width: 64ch; }
+  .terms-body ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
+  .terms-version { font-size: 12px; color: var(--muted); }
   .page[data-replaced="true"]::before { content: "صورة بديلة"; position: absolute; top: 14px; inset-inline-start: 14px; z-index: 1; font-size: 11px; font-weight: 600; line-height: 1.8; padding-inline: 7px; border-radius: 999px; background: var(--ink); color: var(--surface); pointer-events: none; }
 
   @media (max-width: 900px) {
@@ -356,6 +378,14 @@
         <span class="field-label">صور بديلة</span>
         <ul class="replace-list" id="replace-list"></ul>
       </div>
+      <div class="price" aria-live="polite">
+        <div class="price-head">
+          <span class="field-label">السعر</span>
+          <strong class="price-total" id="price-total"></strong>
+        </div>
+        <ul class="price-lines" id="price-lines"></ul>
+        <p class="fine">تدفع بعد ما توصلك نسخة المعاينة على الواتساب وتتأكد إنها واضحة، وبعد الدفع توصلك النسخة النهائية.</p>
+      </div>
       <div class="field">
         <label for="notes">ملاحظات <span class="optional">(اختياري)</span></label>
         <textarea id="notes" rows="2" placeholder="مثلًا: صفحة 14 فيها رقم الهوية"></textarea>
@@ -368,6 +398,10 @@
         <textarea id="report" rows="10" readonly dir="ltr" spellcheck="false"></textarea>
       </div>
       <div class="actions">
+        <div class="agree">
+          <label for="agree"><input type="checkbox" id="agree">أوافق على الشروط والأحكام</label>
+          <button type="button" class="link-btn" id="open-terms">اقرأ الشروط</button>
+        </div>
         <ol class="send-steps">
           <li id="step-file">
             <button type="button" class="btn btn-primary" id="share-file">إرسال ملف الـ PDF</button>
@@ -408,6 +442,56 @@
       <div class="viewer-stage" id="viewer-stage"></div>
     </div>
   </dialog>
+
+  <dialog class="terms" id="terms" aria-labelledby="terms-title">
+    <div class="terms-inner">
+      <div class="terms-head">
+        <h2 id="terms-title">الشروط والأحكام</h2>
+        <button type="button" class="btn icon-btn" id="terms-close" aria-label="إغلاق">×</button>
+      </div>
+      <div class="terms-body">
+        <p class="terms-version">النسخة 1</p>
+
+        <h3>الخدمة</h3>
+        <p>نجهّز ملف الـ PDF حسب اختياراتك: نحذف الصفحات اللي حددتها، ونستبدل الصفحات بالصور اللي أرفقتها، ونضغط الملف للحجم اللي طلبته. الصفحات المهمة تاخذ أعلى وضوح ممكن ضمن هذا الحجم.</p>
+        <p>الملف النهائي يكون بالأبيض والأسود، والكتابة فيه ما تنحدد ولا تنبحث، لأن هذا اللي يخلي الصفحات واضحة بحجم صغير.</p>
+
+        <h3>خصوصية ملفاتك</h3>
+        <ul>
+          <li>ملفك ما يترفع على هذا الموقع. أنت ترسله بنفسك على الواتساب، ونجهّزه على جهاز خاص.</li>
+          <li>نستخدم ملفاتك لتنفيذ طلبك فقط، وما نشاركها مع أي أحد.</li>
+          <li>نحذف ملفاتك والنسخ الناتجة منها خلال 7 أيام من التسليم أو الإلغاء.</li>
+        </ul>
+
+        <h3>المعاينة والدفع</h3>
+        <ul>
+          <li>السعر يظهر لك قبل الإرسال، وينكتب في التقرير اللي توصلنا.</li>
+          <li>نرسل لك أول شي نسخة معاينة مكتوب عليها «معاينة»، عشان تتأكد من الوضوح قبل ما تدفع.</li>
+          <li>إذا ناسبتك المعاينة، نرسل لك بيانات الدفع في نفس محادثة الواتساب.</li>
+          <li>النسخة النهائية بدون علامة المعاينة توصلك بعد الدفع فقط.</li>
+        </ul>
+
+        <h3>إذا الحجم ما يكفي للوضوح</h3>
+        <p>إذا كان الحجم المطلوب صغير لدرجة إن الصفحات المهمة ما تطلع واضحة، نبلغك قبل الدفع. وقتها تقدر تحذف صفحات، أو تخلي بعض الصفحات «أقل أهمية»، أو تلغي الطلب بدون ما تدفع شي.</p>
+
+        <h3>مسؤوليتك</h3>
+        <ul>
+          <li>أنت مسؤول عن محتوى الملف والصور، وإن لك الحق في مشاركتها.</li>
+          <li>ما نعدّل على محتوى المستند نفسه، ولا نضيف له شي غير اللي اخترته.</li>
+        </ul>
+
+        <h3>قبول الجهة للملف</h3>
+        <p>نجهّز الملف بالحجم اللي تطلبه، بس قبوله عند الجهة اللي بترفعه لها يعتمد على شروطها، وما نقدر نضمنه.</p>
+
+        <h3>الاسترجاع</h3>
+        <p>لأنك تدفع بعد ما تشوف المعاينة وتوافق عليها، المبلغ ما يسترجع بعد ما تستلم النسخة النهائية. إلا إذا كانت النسخة النهائية مختلفة عن المعاينة اللي وافقت عليها، وقتها نصلحها أو نرجع لك المبلغ.</p>
+      </div>
+      <div class="terms-foot">
+        <button type="button" class="btn btn-primary" id="terms-accept">أوافق على الشروط</button>
+        <button type="button" class="btn btn-quiet" id="terms-dismiss">إغلاق</button>
+      </div>
+    </div>
+  </dialog>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -426,11 +510,24 @@
   // Phone photos can be huge; this keeps documents legible while sharing fast.
   const MAX_IMAGE_SIDE = 2400;
 
+  // Priced under comparable Khamsat gigs ($5 for one small PDF, $10 up to 50MB).
+  const BASE_PRICE_SAR = 15;
+  const IMAGE_PRICE_SAR = 2;
+  const TERMS_VERSION = "v1";
+
+  function imagesCount(count) {
+    if (count === 1) return "صورة بديلة";
+    if (count === 2) return "صورتين بديلتين";
+    if (count <= 10) return `${count} صور بديلة`;
+    return `${count} صورة بديلة`;
+  }
+
   function imagesLabel(count) {
-    if (count === 1) return "وصورة بديلة";
-    if (count === 2) return "وصورتين بديلتين";
-    if (count <= 10) return `و${count} صور بديلة`;
-    return `و${count} صورة بديلة`;
+    return `و${imagesCount(count)}`;
+  }
+
+  function priceFor(imageCount) {
+    return BASE_PRICE_SAR + IMAGE_PRICE_SAR * imageCount;
   }
 
   // A one-page PDF wrapping a JPEG. It travels as a document, so WhatsApp
@@ -524,6 +621,8 @@
     viewerPrev: $("viewer-prev"), viewerNext: $("viewer-next"), viewerClose: $("viewer-close"),
     viewerNote: $("viewer-note"), replacePick: $("replace-pick"), replaceRemove: $("replace-remove"),
     replaceInput: $("replace-input"), replaceField: $("replace-field"), replaceList: $("replace-list"),
+    priceTotal: $("price-total"), priceLines: $("price-lines"), agree: $("agree"), openTerms: $("open-terms"),
+    terms: $("terms"), termsClose: $("terms-close"), termsAccept: $("terms-accept"), termsDismiss: $("terms-dismiss"),
   };
 
   const app = {
@@ -777,10 +876,12 @@
       `size_bytes: ${app.size}`,
       `sha256: ${app.sha}`,
       `target_mb: ${target > 0 ? target : "-"}`,
+      `price_sar: ${priceFor(app.replacements.size)}`,
       `delete: ${toRanges(groups.delete) || "-"}`,
       `important: ${toRanges(groups.important) || "-"}`,
       `less_important: ${toRanges(groups.less) || "-"}`,
       `replace: ${toRanges([...app.replacements.keys()].sort((a, b) => a - b).map((i) => i + 1)) || "-"}`,
+      `terms: ${els.agree.checked ? TERMS_VERSION : "-"}`,
     ];
     const notes = els.notes.value.replace(/\s+/g, " ").trim();
     if (notes) lines.push(`notes: ${notes}`);
@@ -801,11 +902,26 @@
       $(`count-${key}`).textContent = groups[key].length;
       document.querySelectorAll(`[data-sum="${key}"]`).forEach((el) => { el.textContent = groups[key].length; });
     }
-    const problem = app.demo ? "ارفع ملفك أولًا." : problemWith(groups, target);
-    els.copy.disabled = app.demo;
+    const problem = app.demo
+      ? "ارفع ملفك أولًا."
+      : problemWith(groups, target) || (els.agree.checked ? "" : "وافق على الشروط والأحكام أولًا.");
+    els.copy.disabled = app.demo || !els.agree.checked;
 
     renderReplacementList();
     const imageCount = app.replacements.size;
+
+    els.priceTotal.textContent = `${priceFor(imageCount)} ريال`;
+    const priceLines = [["ضغط الملف", BASE_PRICE_SAR]];
+    if (imageCount) priceLines.push([`${imagesCount(imageCount)} × ${IMAGE_PRICE_SAR} ريال`, IMAGE_PRICE_SAR * imageCount]);
+    els.priceLines.replaceChildren(...priceLines.map(([label, amount]) => {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = label;
+      const value = document.createElement("span");
+      value.textContent = `${amount} ريال`;
+      item.append(name, value);
+      return item;
+    }));
     const shareDisabled = Boolean(problem) || !app.canShareFiles;
     let shareHint;
     if (problem) shareHint = problem;
@@ -1030,6 +1146,17 @@
 
   els.target.addEventListener("input", updateReport);
   els.notes.addEventListener("input", updateReport);
+  els.agree.addEventListener("change", updateReport);
+
+  els.openTerms.addEventListener("click", () => els.terms.showModal());
+  els.termsAccept.addEventListener("click", () => {
+    els.agree.checked = true;
+    els.terms.close();
+    updateReport();
+  });
+  els.termsClose.addEventListener("click", () => els.terms.close());
+  els.termsDismiss.addEventListener("click", () => els.terms.close());
+  els.terms.addEventListener("click", (event) => { if (event.target === els.terms) els.terms.close(); });
 
   els.copy.addEventListener("click", async () => {
     const text = els.report.value;
